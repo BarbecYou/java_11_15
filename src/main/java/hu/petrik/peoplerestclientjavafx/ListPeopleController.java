@@ -8,6 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public class ListPeopleController {
     @FXML
@@ -35,13 +36,7 @@ public class ListPeopleController {
 
         Platform.runLater(() -> {
             try {
-                Response response = RequestHandler.get(App.BASE_URL);
-                String content = response.getContent();
-                Gson converter = new Gson();
-                Person[] people = converter.fromJson(content, Person[].class);
-                for (Person person : people) {
-                    peopleTable.getItems().add(person);
-                }
+                loadPeopleFromServer();
             } catch (IOException e) {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("ERROR");
@@ -53,6 +48,17 @@ public class ListPeopleController {
 
             }
         });
+    }
+
+    private void loadPeopleFromServer() throws IOException {
+        Response response = RequestHandler.get(App.BASE_URL);
+        String content = response.getContent();
+        Gson converter = new Gson();
+        Person[] people = converter.fromJson(content, Person[].class);
+        peopleTable.getItems().clear();
+        for (Person person : people) {
+            peopleTable.getItems().add(person);
+        }
     }
 
     @FXML
@@ -67,6 +73,35 @@ public class ListPeopleController {
 
     @FXML
     public void deleteClick(ActionEvent actionEvent) {
+        int selectedIndex = peopleTable.getSelectionModel().getSelectedIndex();
+        if (selectedIndex == -1) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setHeaderText("Please select a person from the list first");
+            alert.show();
+            return;
+        }
+
+        Person selected = peopleTable.getSelectionModel().getSelectedItem();
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setHeaderText(String.format("Are you sure you want to delete %s?", selected.getName()));
+        Optional<ButtonType> optionalButtonType =  confirmation.showAndWait();
+
+        if (optionalButtonType.isEmpty()){
+            System.out.println("Unknown error occured");
+            return;
+        }
+        ButtonType clickedButton = optionalButtonType.get();
+        if (clickedButton.equals(ButtonType.OK)){
+            String url = App.BASE_URL + "/" + selected.getId();
+            try {
+                RequestHandler.delete(url);
+                loadPeopleFromServer();
+            } catch (IOException e) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setHeaderText("An error occured while communicating with the server");
+                alert.show();
+            }
+        }
 
     }
 
